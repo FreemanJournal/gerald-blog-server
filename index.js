@@ -20,6 +20,10 @@ async function run() {
     try {
         await client.connect();
         const blogCollection = client.db("BlogApplication").collection("geraldBlog");
+        const userCollection = client.db("BlogApplication").collection("userInfo");
+
+        // Blog Collection Api
+
         // get all the data 
         app.get('/blogs', async (req, res) => {
             const cursor = blogCollection.find({});
@@ -41,7 +45,7 @@ async function run() {
             res.send(result);
         })
         // update article
-        app.put('/blog/:id',async (req,res)=>{
+        app.put('/blog/:id', async (req, res) => {
             const id = req.params.id
             const updatedArticle = req.body;
             const filter = { _id: ObjectId(id) };
@@ -50,8 +54,8 @@ async function run() {
 
             const updateArticle = {
                 $set: updatedArticle
-              };
-            const result = await blogCollection.updateOne(filter,updateArticle,options)
+            };
+            const result = await blogCollection.updateOne(filter, updateArticle, options)
             res.send(result);
         })
         // delete article
@@ -59,10 +63,34 @@ async function run() {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
             const result = await blogCollection.deleteOne(query)
-            res.send({result,query})
+            res.send({ result, query })
         })
 
+        // User collection api
 
+        app.post("/user", async (req, res) => {
+            const userData = req.body
+            const id = userData._id
+            // create a filter for a user to update
+            const filter = { _id: ObjectId(id) };
+            // this option instructs the method to create a user if no user match the filter
+            const options = { upsert: true };
+            // create a user
+            const updateDoc = {
+                $set: {...userData,_id:ObjectId(id)}
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+
+            res.send(result)
+
+        })
+
+        app.get("/user", async (req, res) => {
+            const { email } = req.query
+            const query = { email_address: email };
+            const result = await userCollection.findOne(query);
+            res.send(result)
+        })
 
 
 
