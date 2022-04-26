@@ -2,6 +2,7 @@ require('dotenv').config()
 const express = require("express");
 const cors = require("cors")
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
 // const ObjectId = require('mongodb').ObjectId;
 const app = express();
 const port = process.env.PORT || 5000;
@@ -10,8 +11,25 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// connect with mongodb
+// verify jwt token
+function verifyToken(req, res, next) {
+    const authHeader = req.headers.authorization
+    if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized Access." })
+    }
+    const token = authHeader.split(" ")[1]
+    // verify a token symmetric
+    jwt.verify(token, process.env.ACCESS_TOKEN_PRIVATE_KEY, function (err, decoded) {
+      if(err){
+        return res.status(403).send({ message: "Forbidden Access." })
+      }
+      req.decoded = decoded
+      next();
+    });
+   
+}
 
+// connect with mongodb
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.3rgm8.mongodb.net/nodeBasicDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -25,7 +43,7 @@ async function run() {
         // Blog Collection Api
 
         // get all the data 
-        app.get('/blogs', async (req, res) => {
+        app.get('/blog', async (req, res) => {
             const cursor = blogCollection.find({});
             const blogs = await cursor.toArray();
             res.send(blogs)
@@ -70,26 +88,37 @@ async function run() {
 
         app.post("/user", async (req, res) => {
             const userData = req.body
-            const id = userData._id
+            userData._id && delete userData._id
             // create a filter for a user to update
-            const filter = { _id: ObjectId(id) };
+            const filter = { email_address: userData.email_address };
             // this option instructs the method to create a user if no user match the filter
             const options = { upsert: true };
             // create a user
             const updateDoc = {
-                $set: {...userData,_id:ObjectId(id)}
+                $set: { ...userData }
             };
             const result = await userCollection.updateOne(filter, updateDoc, options);
-
             res.send(result)
 
         })
 
-        app.get("/user", async (req, res) => {
+        app.get("/user", verifyToken, async (req, res) => {
+            const decodedEmail = req.decoded.email
             const { email } = req.query
+            if(decodedEmail !== email){
+                return res.status(403).send({ message: "Forbidden Access." });
+            }
             const query = { email_address: email };
             const result = await userCollection.findOne(query);
             res.send(result)
+        })
+
+        // auth api
+        app.post('/login', (req, res) => {
+            const user = req.body;
+            const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_PRIVATE_KEY, { expiresIn: '1d' })
+            res.send({ accessToken })
+
         })
 
 
