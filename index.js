@@ -88,6 +88,11 @@ async function run() {
 
         app.post("/user", async (req, res) => {
             const userData = req.body
+            const result = await userCollection.insertOne(userData);
+            res.send(result)
+        })
+        app.post("/user/update", async (req, res) => {
+            const userData = req.body
             userData._id && delete userData._id
             // create a filter for a user to update
             const filter = { email_address: userData.email_address };
@@ -102,11 +107,14 @@ async function run() {
 
         })
 
+        let count = 0
+
         app.get("/user", verifyToken, async (req, res) => {
             const decodedEmail = req.decoded.email
             const { email } = req.query
             if(decodedEmail !== email){
-                return res.status(403).send({ message: "Forbidden Access." });
+                res.status(403).send({ message: "Forbidden Access." });
+                return;
             }
             const query = { email_address: email };
             const result = await userCollection.findOne(query);
@@ -121,8 +129,6 @@ async function run() {
 
         })
 
-
-
     } finally {
 
     }
@@ -131,11 +137,9 @@ async function run() {
 run().catch(console.dir);
 
 
-app.get('/hero', (req, res) => {
-    res.send('Nacho is dead...')
-})
+
 app.get('/', (req, res) => {
-    res.send('Running server...')
+    res.send('Running server at 5000...')
 })
 
 app.listen(port, () => {
